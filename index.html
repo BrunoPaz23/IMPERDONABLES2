@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Imperdonables</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#070b16;--card:#0f1526;--card2:#0b1020;--line:#1f2a44;--txt:#f1f5ff;--mut:#8b96b3;--acc:#7c83ff;--ok:#22c55e;--warn:#eab308;--bad:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:16px;max-width:720px;margin:0 auto}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:22px;margin-bottom:16px}
+.head{display:flex;gap:14px;align-items:center;margin-bottom:18px}
+.logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#4f46e5,#3b82f6);display:grid;place-items:center;font-size:24px}
+.eyebrow{font-size:12px;letter-spacing:.2em;color:var(--mut);font-weight:600}
+h1{margin:2px 0 0;font-size:28px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kpi{background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:16px}
+.kpi .l{font-size:11px;letter-spacing:.15em;color:var(--mut);font-weight:600}
+.kpi .v{font-size:30px;font-weight:700;margin-top:6px}
+.kpi.obj{border-color:#3730a3;background:#12173a}
+.kpi.ok{border-color:#166534;background:#0d2318}.kpi.warn{border-color:#854d0e;background:#241d0b}.kpi.bad{border-color:#991b1b;background:#2a1520}
+.sec{font-size:12px;letter-spacing:.2em;color:var(--mut);font-weight:600;margin-bottom:12px}
+label{display:block;font-size:12px;letter-spacing:.15em;color:var(--acc);font-weight:700;margin:14px 0 8px}
+select{width:100%;background:#1b2337;color:var(--txt);border:1px solid var(--line);border-radius:16px;padding:14px;font-size:16px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+button{border:0;border-radius:16px;padding:15px;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(90deg,#4f46e5,#3b82f6);cursor:pointer}
+button.secondary{background:#1b2337}
+button:disabled{opacity:.5}
+.meta{font-size:12px;color:var(--mut);margin-top:12px;text-align:center}
+.cli{background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px;cursor:pointer}
+.cli .row{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.cli .n{font-weight:600;font-size:14px}.cli .s{font-size:12px;color:var(--mut);margin-top:3px}
+.pct{font-weight:700;font-size:16px;white-space:nowrap}
+.pct.ok{color:var(--ok)}.pct.warn{color:var(--warn)}.pct.bad{color:var(--bad)}
+.bar{height:6px;background:#1b2337;border-radius:6px;margin-top:10px;overflow:hidden}.bar i{display:block;height:100%}
+.bg-ok{background:var(--ok)}.bg-warn{background:var(--warn)}.bg-bad{background:var(--bad)}
+.imps{margin-top:12px;display:none}.cli.open .imps{display:block}
+.imp{font-size:13px;padding:6px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between}
+.imp .x{color:var(--bad)}.imp .y{color:var(--ok)}
+.empty{text-align:center;color:var(--mut);padding:10px}
+.err{background:#2a1520;border:1px solid #991b1b;border-radius:14px;padding:12px;margin-bottom:14px;font-size:14px}
+.hidden{display:none}
+.file{font-size:12px;color:var(--mut);margin-top:14px;text-align:center}
+.file input{display:none}.file span{color:var(--acc);text-decoration:underline;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="error" class="err hidden"></div>
+<div class="panel">
+  <div class="head"><div class="logo">↗</div><div><div class="eyebrow">MOBILE PRO</div><h1>Imperdonables</h1></div></div>
+  <div class="kpis">
+    <div class="kpi" id="kObj"><div class="l">OBJETIVO</div><div class="v" id="vObj">–</div></div>
+    <div class="kpi" id="kAv"><div class="l">AVANCE</div><div class="v" id="vAv">–</div></div>
+    <div class="kpi"><div class="l">CLIENTES</div><div class="v" id="vCli">–</div></div>
+    <div class="kpi"><div class="l">AUDITABLES</div><div class="v" id="vAud">–</div></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="sec">FILTROS PRINCIPALES</div>
+  <label>1. SEGMENTO</label><select id="fSeg"></select>
+  <label>2. JEFE</label><select id="fJefe"></select>
+  <label>3. RUTA</label><select id="fRuta"></select>
+  <label>4. AUDITABLES</label>
+  <select id="fAud"><option value="TODOS">Todos los clientes</option><option value="SI">Solo auditables</option><option value="NO">No auditables</option></select>
+  <div class="actions"><button id="go">Ver clientes</button><button id="reload" class="secondary">Recargar Data</button></div>
+  <div class="meta" id="meta">Cargando…</div>
+  <div class="file"><label style="all:unset"><input type="file" id="local" accept=".xlsx,.xls">¿Querés probar con otro Excel? <span>Abrir archivo</span></label></div>
+</div>
+
+<div class="panel" id="list"><div class="empty">Filtrá para comenzar</div></div>
+
+<script>
+// ===== CONFIGURACIÓN =====
+const CONFIG = {
+  // Archivo que Power Automate reemplaza todos los días
+  dataUrl: 'imperdonables.xlsx',
+  // Objetivo (%) por segmento = nombre de la hoja del Excel
+  objetivos: { AUTOSERVICIO:75.00, ORO:74.44, PLATA:73.00, KIOSCO:40.08, BRONCE:43.59 },
+  // Hojas opcionales dentro del mismo Excel
+  hojaAuditables: 'AUDITABLES',
+  hojaIce: 'ICE'
+};
+// =========================
+
+let DATA=[], AUD=new Set(), ICE={};
+const $=id=>document.getElementById(id);
+const norm=v=>String(v??'').trim();
+const up=v=>norm(v).toUpperCase();
+const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const fmt=v=>(v===null||isNaN(v))?'NA':Number(v).toFixed(1).replace('.',',')+'%';
+const uniq=a=>[...new Set(a.filter(x=>norm(x)))].sort((x,y)=>String(x).localeCompare(String(y),'es',{numeric:true}));
+const isDone=v=>['1','1.0','SI','SÍ','OK','CUMPLIDO','X','TRUE','VERDADERO'].includes(up(v));
+function cls(obj,p){if(obj==null)return '';if(p>=obj)return 'ok';if(obj-p<=5)return 'warn';return 'bad';}
+function showError(m){const e=$('error');e.textContent=m;e.classList.remove('hidden');}
+function num(v){let s=norm(v).replace('%','').replace(/\s/g,'');if(!s)return null;
+  if(s.includes('.')&&s.includes(',')){s=s.lastIndexOf(',')>s.lastIndexOf('.')?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'');}
+  else if(s.includes(','))s=s.replace(',','.');const n=Number(s);return isNaN(n)?null:n;}
+function rowsOf(ws){return XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:'',blankrows:false});}
+function codeOf(v){return norm(v).split(' - ')[0].replace(/\D/g,'');}
+
+function parseSegmento(rows,segmento){
+  const h=rows.findIndex((r,i)=>i<=8&&r.some(v=>up(v)==='OUT-CL'||up(v).startsWith('OUT')));
+  if(h<0)return [];
+  const meta=rows[h], top=h>0?rows[h-1]:[];
+  const ix=n=>meta.findIndex(v=>up(v)===n);
+  const iJ=ix('JEFE'), iR=ix('RUTA'), iT=ix('TERRITORIO'), iC=ix('CEDI');
+  const iO=meta.findIndex(v=>up(v)==='OUT-CL'||up(v).startsWith('OUT'));
+  let iTot=-1;for(let i=iO+1;i<Math.max(meta.length,top.length);i++){if(up(meta[i])==='TOTAL'||up(top[i])==='TOTAL'){iTot=i;break;}}
+  const end=iTot>-1?iTot:Math.max(meta.length,top.length);
+  const cols=[];
+  for(let i=iO+1;i<end;i++){const name=[norm(top[i]),norm(meta[i])].filter(Boolean).join(' ');if(!name||up(name).includes('TOTAL'))continue;cols.push({i,name});}
+  let lJ='',lR='',lT='',lC='';const out=[];
+  for(const r of rows.slice(h+1)){
+    const oc=norm(r[iO]);if(!oc||up(oc).includes('TOTAL'))continue;
+    lJ=(iJ>-1?norm(r[iJ]):'')||lJ; lR=(iR>-1?norm(r[iR]):'')||lR; lT=(iT>-1?norm(r[iT]):'')||lT; lC=(iC>-1?norm(r[iC]):'')||lC;
+    const code=codeOf(oc), name=norm(oc.split(' - ').slice(1).join(' - '))||oc;
+    let ok=0;const imps=cols.map(c=>{const d=isDone(r[c.i]);if(d)ok++;return{n:c.name,d};});
+    out.push({segmento,code,name,jefe:lJ,ruta:lR,territorio:lT,cedi:lC,imps,ok,total:cols.length,pct:cols.length?ok/cols.length*100:0});
+  }
+  return out;
+}
+
+function parseWorkbook(wb){
+  AUD=new Set();ICE={};DATA=[];
+  const find=n=>wb.SheetNames.find(s=>up(s)===up(n));
+  const ha=find(CONFIG.hojaAuditables);
+  if(ha)rowsOf(wb.Sheets[ha]).forEach(r=>r.forEach(v=>{const c=norm(v).replace(/\D/g,'');if(/^\d{6,}$/.test(c))AUD.add(c);}));
+  const hi=find(CONFIG.hojaIce);
+  if(hi){const rows=rowsOf(wb.Sheets[hi]);const h=rows.findIndex((r,i)=>i<=8&&r.some(v=>up(v).startsWith('OUT')));
+    if(h>-1){const o=rows[h].findIndex(v=>up(v).startsWith('OUT')),a=rows[h].findIndex(v=>/PUNTAJE|AVANCE|ICE/.test(up(v)));
+      if(a>-1)rows.slice(h+1).forEach(r=>{const c=codeOf(r[o]),n=num(r[a]);if(/^\d{6,}$/.test(c)&&n!==null)ICE[c]=n;});}}
+  for(const s of wb.SheetNames){if(s===ha||s===hi)continue;DATA.push(...parseSegmento(rowsOf(wb.Sheets[s]),up(s)));}
+  DATA.forEach(d=>{d.aud=AUD.has(d.code);d.ice=ICE[d.code]??null;});
+  if(!DATA.length)showError('No encontré clientes en el Excel. Revisá que las hojas tengan la columna OUT-CL.');
+}
+
+async function load(){
+  $('reload').disabled=true;$('meta').textContent='Cargando…';$('error').classList.add('hidden');
+  try{
+    const res=await fetch(CONFIG.dataUrl+'?t='+Date.now(),{cache:'no-store'});
+    if(!res.ok)throw new Error('No encontré '+CONFIG.dataUrl+' en el repositorio.');
+    const lm=res.headers.get('last-modified');
+    parseWorkbook(XLSX.read(await res.arrayBuffer(),{type:'array'}));
+    $('meta').textContent=(lm?'Datos actualizados: '+new Date(lm).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'})+' · ':'')+DATA.length+' clientes';
+  }catch(e){showError(e.message);$('meta').textContent='Sin datos';}
+  $('reload').disabled=false;fillFilters();render();
+}
+
+function opts(sel,vals,all){const cur=sel.value;sel.innerHTML=`<option value="TODOS">${all}</option>`+vals.map(v=>`<option>${esc(v)}</option>`).join('');sel.value=vals.includes(cur)?cur:'TODOS';}
+function fillFilters(){
+  opts($('fSeg'),uniq(DATA.map(d=>d.segmento)),'Todos los segmentos');
+  const a=DATA.filter(d=>$('fSeg').value==='TODOS'||d.segmento===$('fSeg').value);
+  opts($('fJefe'),uniq(a.map(d=>d.jefe)),'Todos los jefes');
+  const b=a.filter(d=>$('fJefe').value==='TODOS'||d.jefe===$('fJefe').value);
+  opts($('fRuta'),uniq(b.map(d=>d.ruta)),'Todas las rutas');
+}
+function filtered(){const s=$('fSeg').value,j=$('fJefe').value,r=$('fRuta').value,a=$('fAud').value;
+  return DATA.filter(d=>(s==='TODOS'||d.segmento===s)&&(j==='TODOS'||d.jefe===j)&&(r==='TODOS'||d.ruta===r)&&(a==='TODOS'||(a==='SI'?d.aud:!d.aud)));}
+function render(){
+  const f=filtered(),s=$('fSeg').value;
+  const obj=s==='TODOS'?null:(CONFIG.objetivos[s]??null);
+  const tot=f.reduce((x,d)=>x+d.total,0),ok=f.reduce((x,d)=>x+d.ok,0);
+  const av=tot?ok/tot*100:null;
+  $('vObj').textContent=obj==null?'NA':fmt(obj);$('vAv').textContent=fmt(av);
+  $('vCli').textContent=f.length;$('vAud').textContent=f.filter(d=>d.aud).length;
+  $('kObj').className='kpi'+(obj!=null?' obj':'');$('kAv').className='kpi '+(av==null?'':cls(obj,av));
+}
+function showList(){
+  const f=filtered().sort((a,b)=>a.pct-b.pct);
+  if(!f.length){$('list').innerHTML='<div class="empty">No hay clientes con esos filtros</div>';return;}
+  $('list').innerHTML=`<div class="sec">${f.length} CLIENTES · DE MENOR A MAYOR AVANCE</div>`+f.map(d=>{const c=cls(CONFIG.objetivos[d.segmento],d.pct);
+    const falt=d.imps.filter(i=>!i.d);
+    return `<div class="cli"><div class="row"><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.code)} · Ruta ${esc(d.ruta)} · ${esc(d.segmento)}${d.aud?' · AUDITABLE':''}${d.ice!=null?' · ICE '+fmt(d.ice):''}</div></div><div class="pct ${c}">${fmt(d.pct)}</div></div>
+    <div class="bar"><i class="bg-${c||'ok'}" style="width:${d.pct}%"></i></div>
+    <div class="imps"><div class="s" style="margin-bottom:6px">${d.ok} de ${d.total} cumplidos${falt.length?' · faltan '+falt.length:''}</div>${d.imps.map(i=>`<div class="imp"><span>${esc(i.n)}</span><span class="${i.d?'y':'x'}">${i.d?'✓':'✗'}</span></div>`).join('')}</div></div>`;}).join('');
+  $('list').querySelectorAll('.cli').forEach(el=>el.onclick=()=>el.classList.toggle('open'));
+  $('list').scrollIntoView({behavior:'smooth'});
+}
+['fSeg','fJefe','fRuta','fAud'].forEach(id=>$(id).onchange=()=>{if(id!=='fAud')fillFilters();render();$('list').innerHTML='<div class="empty">Tocá "Ver clientes"</div>';});
+$('go').onclick=showList;$('reload').onclick=load;
+$('local').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('error').classList.add('hidden');parseWorkbook(XLSX.read(await f.arrayBuffer(),{type:'array'}));$('meta').textContent='Archivo local: '+f.name+' · '+DATA.length+' clientes';fillFilters();render();};
+load();
+</script>
+</body>
+</html>
